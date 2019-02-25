@@ -1,17 +1,8 @@
 import requests
 from bs4 import BeautifulSoup as soup
 import pprint
-
-
-def get_page_data(song_number):
-    r = requests.get('https://beatsaver.com/browse/rated/'+song_number)
-    pprint.pprint(r.status_code)
-    # pprint.pprint(r.text)
-
-    page_html = r.text
-    page_soup = soup(page_html, "html.parser")
-    page_trs = page_soup.findAll("td")
-    return page_trs
+import json
+import jsonlines
 
 
 def song_titles(trs):
@@ -20,33 +11,56 @@ def song_titles(trs):
             pprint.pprint(d.text)
 
 
-def song_author(trs):
-    for d in trs:
-        if d.text.__contains__("Author"):
-            pprint.pprint(d.text)
+def get_page_data(song_number):
+    song_object = []
+    r_string = ('https://beatsaver.com/browse/rated/'+str(song_number))
+    print(r_string)
+    r = requests.get(r_string)
+    pprint.pprint(r.status_code)
+    # pprint.pprint(r.text)
 
+    page_html = r.text
+    page_soup = soup(page_html, "html.parser")
+    page_tables = page_soup.findAll("table", {"class": "table"})
+    pprint.pprint(page_tables)
 
-def song_difficulties(trs):
-    for d in trs:
-        if d.text.__contains__("Difficulties"):
-            pprint.pprint(d.text)
+    for table in page_tables:
 
+        song = table.contents[3].text
+        print(song)
 
-# iterate pages for top 100 songs of the day
-def top_100():
-    song_list = []
-    song_objects = {}
-    songs = 0
-    while songs < 100:
-        song_list.append(get_page_data(songs))
-        songs += 20
+        author_diff = table.contents[5].text
+        print(author_diff, "\n")
 
+        song_object.append({
+            "song": song,
+            "author": author_diff,
+        })
 
-    return song_objects
+    song_json = json.dumps(song_object)
+    with jsonlines.open("./beatsaber_top_songs_inside.jsonl", "a") as f:
+        f.write_all(song_object)
+    f.close()
 
+    return song_json
 
-all_songs = top_100()
 
 def __main__():
+    n = 0
+    while n < 100:
+        page = get_page_data(n)
+        print("n: ", n, ", page_data: ", page)
+        n += 20
+
+    inside = open("./beatsaber_top_songs_inside.jsonl", "r")
+    final = open("./beatsaber_top_songs.jsonl", "a")
+    final.write("[")
+    for line in inside:
+        thisline = (line+",")
+        final.write(thisline.strip("\n"))
+    final.write("]")
+    inside.close()
+    final.close()
 
 
+__main__()
