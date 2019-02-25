@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup as soup
 import pprint
 import json
 import jsonlines
+# https://jsonlines.readthedocs.io/en/latest/
+import datetime
 
 
 def song_titles(trs):
@@ -54,13 +56,21 @@ def __main__():
 
     inside = open("./beatsaber_top_songs_inside.jsonl", "r")
     final = open("./beatsaber_top_songs.jsonl", "a")
-    final.write("[")
-    for line in inside:
-        thisline = (line+",")
-        final.write(thisline.strip("\n"))
-    final.write("]")
+    final.write("[{")
+    for l, line in enumerate(inside):
+        today = datetime.datetime.today().__format__("%Y%m%d")
+        idnum = str(l+1)
+        id = (today+"_"+idnum)
+        thisline = ("\""+id+"\": "+line.strip("\r\n")+",\r")
+        final.write(thisline)
+    final.write("}]")
     inside.close()
     final.close()
+
+    finalread = open("./beatsaber_top_songs.jsonl", "r")
+    for l in finalread:
+        l_json = json.dumps(l)
+        print(l_json)
 
 
 __main__()
