@@ -15,15 +15,15 @@
 # TODO:  if player is not in database, add
 # TODO:  sms text message or email congratulations for personal best score
 
-import mysql.connector
-from mysql.connector import errors
+
 import requests
 from bs4 import BeautifulSoup as soup
 # https://www.crummy.com/software/BeautifulSoup/bs4/doc/#contents-and-children
 import pprint
 import json
+import jsonlines
+# https://jsonlines.readthedocs.io/en/latest/
 import datetime
-
 
 
 def song_titles(trs):
@@ -35,70 +35,61 @@ def song_titles(trs):
 def get_page_data(song_number):
     song_object = []
     r_string = ('https://beatsaver.com/browse/rated/'+str(song_number))
-    #pprint.pprint(r_string)
+    print(r_string)
     r = requests.get(r_string)
-    print(r.status_code)
+    pprint.pprint(r.status_code)
     # pprint.pprint(r.text)
 
     page_html = r.text
-    #print(page_html)
     page_soup = soup(page_html, "html.parser")
-    #print(page_soup)
     page_tables = page_soup.findAll("table", {"class": "table"})
     pprint.pprint(page_tables)
 
     for table in page_tables:
+
         song = table.contents[3].text
-        split_song = str(song).split("\n")
-        #print(split_song)
+        print(song)
 
         author_diff = table.contents[5].text
-
-        author_split = author_diff.split("\n")
-        difficulty_split = str(author_split[2]).split()
+        print(author_diff, "\n")
 
         song_object.append({
-            "song": split_song[1],
-            "version": split_song[2],
-            "author": author_split[1],
-            "difficulty": difficulty_split
+            "song": song,
+            "author": author_diff,
         })
 
-    with open("./beatsaber_top_songs_inside.json", "a") as f:
-        f.write(str(song_object))  #write_all(song_object)
+    song_json = json.dumps(song_object)
+    with jsonlines.open("./beatsaber_top_songs_inside.json", "a") as f:
+        f.write_all(song_object)
     f.close()
-    pprint.pprint(song_object)
-    return song_object
+
+    return song_json
 
 
 def __main__():
-    today = datetime.datetime.today().__format__("%Y%m%d")
     n = 0
-    c = 0
-    final = open("./beatsaber_top_songs.py", "a")
-    while n < 20:
+    while n < 100:
         page = get_page_data(n)
-
-        # print("n: ", n, ", page_data: ", page)
+        print("n: ", n, ", page_data: ", page)
         n += 20
-        page_items = []
-        for p in page:
-            idnum = str(c + 1)
-            c+=1
 
-            song_id = today + "_" + idnum
-
-            this_song = {song_id: p}
-            pprint.pprint(this_song)
-            #page_items.append(this_song)
-            final.write(str(this_song))
-            if n < 19:
-                final.write(",\n")
-
+    inside = open("./beatsaber_top_songs_inside.json", "r")
+    final = open("./beatsaber_top_songs.jsonl", "a")
+    final.write("[{")
+    for l, line in enumerate(inside):
+        today = datetime.datetime.today().__format__("%Y%m%d")
+        idnum = str(l+1)
+        song_id = (today+"_"+idnum)
+        this_line = ("\""+song_id+"\": "+line.strip("\r\n")+",\r")
+        final.write(this_line)
+    final.write("}]")
+    inside.close()
     final.close()
 
-    finalread = open("./beatsaber_top_songs.py", "r")
-    for i in finalread:
-        pprint.pprint(i)
+    finalread = open("./beatsaber_top_songs.jsonl", "r")
+    for l in finalread:
+        l_json = json.dumps(l)
+        print(l_json)
+
 
 __main__()
